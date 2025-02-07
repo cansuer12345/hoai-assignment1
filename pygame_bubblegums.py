@@ -12,8 +12,9 @@ PIXEL_MARGIN = 2
 BLACK = (0, 0, 0)
 BUBBLEGUM_COLOR = (255, 105, 180)  # Pink color
 TOUCH_THRESHOLD = 50  # Adjust based on sensor sensitivity
-BUBBLEGUM_LIFESPAN = 30  # Frames before bubblegum disappears
+BUBBLEGUM_LIFESPAN = 60  # Frames before bubblegum disappears
 GROWTH_RATE = 1.5  # Growth per frame
+MAX_BUBBLE_SIZE = 50  # Bubbles pop at this size
 
 # Initialise PyGame
 pygame.init()
@@ -22,14 +23,14 @@ WINDOW_SIZE = [
     rows * PIXEL_HEIGHT + rows * PIXEL_MARGIN + 2 * PIXEL_MARGIN
 ]
 screen = pygame.display.set_mode(WINDOW_SIZE)
-pygame.display.set_caption("bubblegums example")
+pygame.display.set_caption("Bubblegum Example")
 
 # Initialise the PyGame Clock for timing
 clock = pygame.time.Clock()
 grid = np.zeros((TSP.rows, TSP.columns))
 
-# List to track bubblegums [(x, y, size, life)]
-bubblegums = []
+# Dictionary to track bubbles with coordinates as keys
+bubblegums = {}
 
 while True:
     # Check if the screen is closed and quit
@@ -64,21 +65,29 @@ while True:
                 ]
             )
 
-            # Detect touches and add bubblegums
+            # Detect touches and add/update bubblegums
             if pixel > TOUCH_THRESHOLD:
                 x = PIXEL_MARGIN + ((PIXEL_MARGIN + PIXEL_WIDTH) * column) + PIXEL_WIDTH // 2
                 y = PIXEL_MARGIN + ((PIXEL_MARGIN + PIXEL_HEIGHT) * row) + PIXEL_HEIGHT // 2
-                bubblegums.append([x, y, 2, bubblegum_LIFESPAN])  # Start small
+                key = (x, y)
+
+                if key not in bubblegums:
+                    bubblegums[key] = [x, y, 2]  # Start small
 
     # Update and draw bubblegums
-    new_bubblegums = []
-    for bubblegum in bubblegums:
-        x, y, size, life = bubblegum
-        if life > 0:
-            pygame.draw.circle(screen, bubblegum_COLOR, (x, y), int(size))
-            new_bubblegums.append([x, y, size + GROWTH_RATE, life - 1])
+    updated_bubblegums = {}
 
-    bubblegums = new_bubblegums  # Remove expired bubblegums
+    for key, (x, y, size) in bubblegums.items():
+        row = (y - PIXEL_MARGIN) // (PIXEL_MARGIN + PIXEL_HEIGHT)
+        col = (x - PIXEL_MARGIN) // (PIXEL_MARGIN + PIXEL_WIDTH)
+
+        if 0 <= row < rows and 0 <= col < columns and grid[row][col] > TOUCH_THRESHOLD:
+            new_size = size + GROWTH_RATE
+            if new_size < MAX_BUBBLE_SIZE:
+                updated_bubblegums[key] = [x, y, new_size]
+                pygame.draw.circle(screen, BUBBLEGUM_COLOR, (x, y), int(new_size))
+
+    bubblegums = updated_bubblegums  # Remove popped bubbles
 
     # Limit the framerate to 60FPS
     clock.tick(60)
